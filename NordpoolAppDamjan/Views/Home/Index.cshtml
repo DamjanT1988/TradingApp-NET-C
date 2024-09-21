@@ -1,8 +1,31 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
-}
+﻿<canvas id="capacityChart"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    var ctx = document.getElementById('capacityChart').getContext('2d');
+    var capacityChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Hydro', 'Wind', 'Nuclear', 'Solar'], // Add more as required
+            datasets: [{
+                label: 'Unavailable Capacity (MW)',
+                data: [/* Fill this with the actual data from your service */],
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<select id="areaFilter" onchange="filterByArea()">
+    <option value="All">All Areas</option>
+    <option value="Area1">Area 1</option>
+    <option value="Area2">Area 2</option>
+</select>
