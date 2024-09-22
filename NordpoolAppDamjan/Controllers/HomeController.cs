@@ -1,39 +1,38 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using NordpoolAppDamjan.Models;
-using System.Diagnostics;
+using System.Threading.Tasks;
+using static UMMWebSocketService;
 
-namespace NordpoolAppDamjan.Controllers
+public class HomeController : Controller
 {
-    public class HomeController : Controller
+    private readonly UMMWebSocketService _ummWebSocketService;
+
+    public HomeController()
     {
-        private readonly UMMService _ummService;
-
-        public HomeController(UMMService ummService)
-        {
-            _ummService = ummService;
-        }
-
-        public async Task<IActionResult> Index()
-        {
-            // Get UMM data for production unavailability
-            var umms = await _ummService.GetProductionUnavailabilityUMMsAsync(DateTime.Today);
-
-            // Group by ProductionType and calculate total unavailable capacity
-            var capacityByType = umms.GroupBy(umm => umm.ProductionType)
-                                     .Select(g => new
-                                     {
-                                         ProductionType = g.Key,
-                                         TotalCapacity = g.Sum(umm => umm.UnavailableCapacity),
-                                         Area = g.First().Area // Assuming each UMMMessage has an Area field
-                                     }).ToList();
-
-            // Convert the data to JSON in the controller
-            ViewBag.CapacityDataJson = Newtonsoft.Json.JsonConvert.SerializeObject(capacityByType);
-
-            return View();
-        }
-
+        _ummWebSocketService = new UMMWebSocketService();
     }
 
+    public IActionResult Index()
+    {
+        return View();
+    }
 
+    // This method is called to start listening to the WebSocket
+    public async Task StartListening()
+    {
+        await _ummWebSocketService.ConnectToUMMWebSocketAsync(OnNewMessageReceived);
+    }
+
+    // This callback is triggered whenever a new ProductionUnavailability message is received
+    private void OnNewMessageReceived(UMMMessage message)
+    {
+        // Process the message or send it to the front-end via SignalR, etc.
+        Console.WriteLine($"New message received: {message.ProductionType} - {message.UnavailableCapacity} MW");
+        // You can store messages and send them to the front-end via SignalR or another mechanism
+    }
+
+    // Call this method to stop the connection when necessary
+    public async Task StopListening()
+    {
+        await _ummWebSocketService.DisconnectAsync();
+    }
 }

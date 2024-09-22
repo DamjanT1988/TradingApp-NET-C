@@ -2,37 +2,107 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // Use the JSON string from the ViewBag and parse it to a JavaScript object
-    var capacityData = JSON.parse('@Html.Raw(ViewBag.CapacityDataJson)');
+    // Initial data
+    var capacityData = [];
 
-    // Extract labels and data for the chart
-    var labels = capacityData.map(item => item.ProductionType);
-    var data = capacityData.map(item => item.TotalCapacity);
+    // Function to initialize the chart
+    function initChart() {
+        var labels = capacityData.map(item => item.ProductionType);
+        var data = capacityData.map(item => item.TotalCapacity);
 
-    // Create the chart with the actual data
-    var ctx = document.getElementById('capacityChart').getContext('2d');
-    var capacityChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,  // Use the production types as labels
-            datasets: [{
-                label: 'Unavailable Capacity (MW)',
-                data: data,  // Use the unavailable capacity as the data points
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true
+        // Create the chart with the actual data
+        var ctx = document.getElementById('capacityChart').getContext('2d');
+        var capacityChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,  // Use the production types as labels
+                datasets: [{
+                    label: 'Unavailable Capacity (MW)',
+                    data: data,  // Use the unavailable capacity as the data points
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
                 }
             }
+        });
+
+        return capacityChart;
+    }
+
+    // Initialize the chart with empty data
+    var capacityChart = initChart();
+
+    // Function to update the chart with new data
+    function updateChart(newData) {
+        var newLabels = newData.map(item => item.ProductionType);
+        var newCapacity = newData.map(item => item.TotalCapacity);
+
+        capacityChart.data.labels = newLabels;
+        capacityChart.data.datasets[0].data = newCapacity;
+        capacityChart.update();
+    }
+
+    // Function to dynamically update area filter options
+    function updateAreaFilter() {
+        var areaFilter = document.getElementById('areaFilter');
+
+        // Clear existing options except "All"
+        while (areaFilter.options.length > 1) {
+            areaFilter.remove(1);
+        }
+
+        // Add areas dynamically based on the received data
+        var uniqueAreas = [...new Set(capacityData.map(item => item.Area))];
+
+        uniqueAreas.forEach(function (area) {
+            var option = document.createElement('option');
+            option.value = area;
+            option.text = area;
+            areaFilter.add(option);
+        });
+    }
+
+    // Connect to WebSocket (or SignalR) to receive live updates
+    var connection = new signalR.HubConnectionBuilder()
+        .withUrl("wss://nordpool.com/websocket-endpoint")  // Replace with the actual WebSocket URL
+        .build();
+
+    connection.on("ReceiveMessage", function (message) {
+        // Parse the incoming message
+        var newMessage = JSON.parse(message);
+
+        console.log("New message received: ", newMessage);
+
+        // Check if the message is for ProductionUnavailability
+        if (newMessage.MessageType === "ProductionUnavailability") {
+            // Add the new message to the capacityData array
+            capacityData.push({
+                ProductionType: newMessage.ProductionType,
+                TotalCapacity: newMessage.UnavailableCapacity,
+                Area: newMessage.Area
+            });
+
+            // Update the chart and area filter with the new data
+            updateChart(capacityData);
+            updateAreaFilter();
         }
     });
 
-    // Function to filter chart data based on area
+    // Start the WebSocket connection
+    connection.start().then(function () {
+        console.log("Connected to WebSocket.");
+    }).catch(function (err) {
+        console.error("Error connecting to WebSocket:", err);
+    });
+
+    // Dropdown for filtering by area
     function filterByArea() {
         var selectedArea = document.getElementById('areaFilter').value;
 
@@ -45,22 +115,9 @@
             updateChart(filteredData);
         }
     }
-
-    // Function to update the chart with new data
-    function updateChart(newData) {
-        var newLabels = newData.map(item => item.ProductionType);
-        var newCapacity = newData.map(item => item.TotalCapacity);
-
-        capacityChart.data.labels = newLabels;
-        capacityChart.data.datasets[0].data = newCapacity;
-        capacityChart.update();
-    }
 </script>
 
 <!-- Area Filter -->
 <select id="areaFilter" onchange="filterByArea()">
     <option value="All">All Areas</option>
-    <!-- Add other area options dynamically or hardcode them -->
-    <option value="Area1">Area 1</option>
-    <option value="Area2">Area 2</option>
 </select>
