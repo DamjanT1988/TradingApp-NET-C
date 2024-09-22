@@ -2,22 +2,19 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // Use the JSON string from the ViewBag and parse it to a JavaScript object
-    var capacityData = JSON.parse('@Html.Raw(ViewBag.CapacityDataJson)');
+    var capacityData = @Html.Raw(JsonConvert.SerializeObject(ViewBag.CapacityData));
 
-    // Extract labels and data for the chart
     var labels = capacityData.map(item => item.ProductionType);
-    var data = capacityData.map(item => item.TotalCapacity);
+    var data = capacityData.map(item => item.UnavailableCapacity);
 
-    // Create the chart with the actual data
     var ctx = document.getElementById('capacityChart').getContext('2d');
     var capacityChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: labels,  // Use the production types as labels
+            labels: labels,
             datasets: [{
                 label: 'Unavailable Capacity (MW)',
-                data: data,  // Use the unavailable capacity as the data points
+                data: data,
                 backgroundColor: 'rgba(75, 192, 192, 0.2)',
                 borderColor: 'rgba(75, 192, 192, 1)',
                 borderWidth: 1
@@ -32,35 +29,23 @@
         }
     });
 
-    // Function to filter chart data based on area
     function filterByArea() {
         var selectedArea = document.getElementById('areaFilter').value;
+        var filteredData = capacityData.filter(item => selectedArea === "All" || item.Area === selectedArea);
 
-        // If "All" is selected, show all data
-        if (selectedArea === "All") {
-            updateChart(capacityData);
-        } else {
-            // Filter the data by the selected area
-            var filteredData = capacityData.filter(item => item.Area === selectedArea);
-            updateChart(filteredData);
-        }
-    }
-
-    // Function to update the chart with new data
-    function updateChart(newData) {
-        var newLabels = newData.map(item => item.ProductionType);
-        var newCapacity = newData.map(item => item.TotalCapacity);
+        // Update the chart with filtered data
+        var newLabels = filteredData.map(item => item.ProductionType);
+        var newCapacity = filteredData.map(item => item.UnavailableCapacity);
 
         capacityChart.data.labels = newLabels;
         capacityChart.data.datasets[0].data = newCapacity;
         capacityChart.update();
     }
+
 </script>
 
-<!-- Area Filter -->
 <select id="areaFilter" onchange="filterByArea()">
     <option value="All">All Areas</option>
-    <!-- Add other area options dynamically or hardcode them -->
     <option value="Area1">Area 1</option>
     <option value="Area2">Area 2</option>
 </select>
