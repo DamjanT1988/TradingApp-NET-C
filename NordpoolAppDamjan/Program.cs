@@ -5,6 +5,7 @@ builder.Services.AddControllersWithViews();
 
 // DT
 builder.Services.AddHttpClient<UMMService>();
+builder.Services.AddHttpClient<RSSService>();
 
 var app = builder.Build();
 

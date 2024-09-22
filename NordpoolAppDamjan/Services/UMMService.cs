@@ -50,7 +50,7 @@ public class RSSService
 
     public async Task<List<UMMMessage>> GetRSSUMMFeedAsync()
     {
-        string rssFeedUrl = "https://your-nordpool-rss-feed-url";
+        string rssFeedUrl = "https://umm.nordpoolgroup.com/#/messages?publicationDate=all&eventDate=nextweek";
         var response = await _httpClient.GetStringAsync(rssFeedUrl);
 
         using (var stringReader = new StringReader(response))
