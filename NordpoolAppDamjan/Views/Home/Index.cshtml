@@ -27,8 +27,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // Safely parse the serialized JSON data from ViewBag. If it's null, initialize an empty array
-    var capacityData = @Html.Raw(JsonConvert.SerializeObject(ViewBag.CapacityDataJson ?? "[]"));
+    // Safely parse the serialized JSON data from ViewBag
+    var capacityData = @Html.Raw(ViewBag.CapacityDataJson ?? "[]");
 
     if (capacityData.length === 0) {
         alert("No data available to display.");

@@ -18,24 +18,20 @@ public class HomeController : Controller
 
     public async Task<IActionResult> Index()
     {
-        var date = DateTime.Today;
-        var username = "your_username"; // Replace with actual username
-        var password = "your_password"; // Replace with actual password
-
         List<UMMMessage> umms = new List<UMMMessage>();
         List<UMMMessage> rssMessages = new List<UMMMessage>();
 
         try
         {
-            // Try to fetch data from the UMM API
-            umms = await _ummService.GetProductionUnavailabilityUMMsAsync(date, username, password);
+            // Fetch data from the UMM API
+            umms = await _ummService.GetProductionUnavailabilityUMMsAsync();
         }
         catch (Exception ex)
         {
             // Log the error and display a message (optional)
             ViewBag.UMMErrorMessage = $"UMM API failed: {ex.Message}";
         }
-
+        /*
         try
         {
             // Fetch data from the RSS feed (this should always run, regardless of UMM API status)
@@ -46,6 +42,7 @@ public class HomeController : Controller
             // Log the error and display a message if RSS feed also fails
             ViewBag.RSSErrorMessage = $"RSS feed failed: {ex.Message}";
         }
+        */
 
         // Combine the data, if UMM API data exists it will be concatenated with RSS feed data
         var combinedData = umms.Concat(rssMessages).ToList();

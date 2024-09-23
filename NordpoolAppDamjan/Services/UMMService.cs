@@ -8,27 +8,31 @@ using System.ServiceModel.Syndication;
 using System.Net.Http.Headers;
 using System.Text;
 
+
 public class UMMService
 {
     private readonly HttpClient _httpClient;
-    private readonly TokenService _tokenService;
 
-    public UMMService(HttpClient httpClient, TokenService tokenService)
+    public UMMService(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        _tokenService = tokenService;
     }
 
-    public async Task<List<UMMMessage>> GetProductionUnavailabilityUMMsAsync(DateTime date, string username, string password)
+    public async Task<List<UMMMessage>> GetProductionUnavailabilityUMMsAsync()
     {
-        // Get the access token
-        var token = await _tokenService.GetAccessTokenAsync(username, password);
+        // Get current UTC date and time for API request
+        var now = DateTime.UtcNow;
+        var startDate = now.AddDays(-7); // Example: 7 days ago
+        var endDate = now; // Now
 
-        // Add the Bearer token to the request headers
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        // Format the start and end dates as ISO8601 (UTC)
+        string formattedStartDate = startDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+        string formattedEndDate = endDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
 
-        // Make the API request
-        string url = $"https://umm.nordpoolgroup.com/api/messages?date={date:yyyy-MM-dd}";
+        // Build the URL using the formatted dates
+        string url = $"https://ummapi.nordpoolgroup.com/messages?publicationStartDate={formattedStartDate}&eventStartDate={formattedStartDate}&eventStopDate={formattedEndDate}";
+
+        // Make the GET request to the API
         var response = await _httpClient.GetAsync(url);
 
         if (!response.IsSuccessStatusCode)
@@ -39,22 +43,115 @@ public class UMMService
 
         var responseBody = await response.Content.ReadAsStringAsync();
 
-        // Deserialize the response
-        var umms = JsonConvert.DeserializeObject<List<UMMMessage>>(responseBody);
+        // Deserialize the response to UMMResponse (which contains the items list)
+        var ummResponse = JsonConvert.DeserializeObject<UMMResponse>(responseBody);
 
-        return umms.FindAll(umm => umm.MessageType == "ProductionUnavailability");
+        if (ummResponse == null || ummResponse.Items == null)
+        {
+            return new List<UMMMessage>(); // Return an empty list if response is null
+        }
+
+        // Check that MessageType is an integer (1 = "ProductionUnavailability") 
+        return ummResponse.Items.FindAll(umm => umm.MessageType == 1);  // Assuming '1' is the correct message type for "ProductionUnavailability"
+
     }
+}
+
+public class UMMResponse
+{
+    [JsonProperty("items")]
+    public List<UMMMessage> Items { get; set; }
 }
 
 public class UMMMessage
 {
-    public string MessageType { get; set; }
-    public string ProductionType { get; set; }
-    public string Area { get; set; }
-    public int UnavailableCapacity { get; set; }
+    [JsonProperty("messageType")]
+    public int MessageType { get; set; } // Make sure this is the correct type (assuming it's an int)
+
+    [JsonProperty("unavailabilityReason")]
+    public string UnavailabilityReason { get; set; }
+
+    [JsonProperty("remarks")]
+    public string Remarks { get; set; }
+
+    [JsonProperty("productionUnits")]
+    public List<ProductionUnit> ProductionUnits { get; set; }
+
+    [JsonProperty("marketParticipants")]
+    public List<MarketParticipant> MarketParticipants { get; set; }
+
+    [JsonProperty("publicationDate")]
+    public DateTime PublicationDate { get; set; }
+
+    [JsonProperty("eventStart")]
     public DateTime EventStart { get; set; }
+
+    [JsonProperty("eventEnd")]
     public DateTime EventEnd { get; set; }
 }
+
+public class ProductionUnit
+{
+    [JsonProperty("name")]
+    public string Name { get; set; }
+
+    [JsonProperty("eic")]
+    public string Eic { get; set; }
+
+    [JsonProperty("fuelType")]
+    public int FuelType { get; set; }
+
+    [JsonProperty("areaEic")]
+    public string AreaEic { get; set; }
+
+    [JsonProperty("areaName")]
+    public string AreaName { get; set; }
+
+    [JsonProperty("installedCapacity")]
+    public int InstalledCapacity { get; set; }
+
+    [JsonProperty("timePeriods")]
+    public List<TimePeriod> TimePeriods { get; set; }
+}
+
+public class TimePeriod
+{
+    [JsonProperty("unavailableCapacity")]
+    public int UnavailableCapacity { get; set; }
+
+    [JsonProperty("availableCapacity")]
+    public int AvailableCapacity { get; set; }
+
+    [JsonProperty("eventStart")]
+    public DateTime EventStart { get; set; }
+
+    [JsonProperty("eventStop")]
+    public DateTime EventStop { get; set; }
+}
+
+public class MarketParticipant
+{
+    [JsonProperty("name")]
+    public string Name { get; set; }
+
+    [JsonProperty("code")]
+    public string Code { get; set; }
+
+    [JsonProperty("acerCode")]
+    public string AcerCode { get; set; }
+
+    [JsonProperty("eicCode")]
+    public string EicCode { get; set; }
+
+    [JsonProperty("leiCode")]
+    public string LeiCode { get; set; }
+}
+
+
+
+
+
+
 
 public class RSSService
 {
@@ -67,7 +164,7 @@ public class RSSService
 
     public async Task<List<UMMMessage>> GetRSSUMMFeedAsync()
     {
-        string rssFeedUrl = "https://umm.nordpoolgroup.com/#/messages?publicationDate=all&eventDate=nextweek";
+        string rssFeedUrl = "https://ummrss.nordpoolgroup.com/messages/?publicationStartDate=2023-12-31T23%3A00%3A00.000Z&eventStartDate=2024-09-22T22%3A00%3A00.000Z&eventStopDate=2024-09-29T21%3A59%3A59.999Z&limit=100";
         var response = await _httpClient.GetStringAsync(rssFeedUrl);
 
         // Configure XmlReaderSettings to allow DTD processing
@@ -89,9 +186,9 @@ public class RSSService
                 {
                     ummMessages.Add(new UMMMessage
                     {
-                        MessageType = "ProductionUnavailability",
-                        ProductionType = item.Title.Text,
-                        UnavailableCapacity = int.Parse(item.Summary.Text) // Assuming unavailable capacity is in summary
+                        //MessageType = "ProductionUnavailability",
+                        //ProductionType = item.Title.Text,
+                        //UnavailableCapacity = int.Parse(item.Summary.Text) // Assuming unavailable capacity is in summary
                     });
                 }
             }
