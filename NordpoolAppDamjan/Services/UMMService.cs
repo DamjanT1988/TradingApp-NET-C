@@ -152,7 +152,7 @@ public class MarketParticipant
 
 
 
-
+/*
 public class RSSService
 {
     private readonly HttpClient _httpClient;
@@ -186,9 +186,9 @@ public class RSSService
                 {
                     ummMessages.Add(new UMMMessage
                     {
-                        //MessageType = "ProductionUnavailability",
-                        //ProductionType = item.Title.Text,
-                        //UnavailableCapacity = int.Parse(item.Summary.Text) // Assuming unavailable capacity is in summary
+                        MessageType = "ProductionUnavailability",
+                        ProductionType = item.Title.Text,
+                        UnavailableCapacity = int.Parse(item.Summary.Text) // Assuming unavailable capacity is in summary
                     });
                 }
             }
@@ -197,7 +197,7 @@ public class RSSService
         }
     }
 }
-
+*/
 public class TokenService
 {
     private readonly HttpClient _httpClient;

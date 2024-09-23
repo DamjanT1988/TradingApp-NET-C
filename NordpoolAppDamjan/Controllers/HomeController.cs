@@ -8,12 +8,12 @@ using Newtonsoft.Json; // Ensure Newtonsoft.Json is included for serialization
 public class HomeController : Controller
 {
     private readonly UMMService _ummService;
-    private readonly RSSService _rssService;
+    //private readonly RSSService _rssService;
 
-    public HomeController(UMMService ummService, RSSService rssService)
+    public HomeController(UMMService ummService/*, RSSService rssService*/)
     {
         _ummService = ummService;
-        _rssService = rssService;
+        //_rssService = rssService;
     }
 
     public async Task<IActionResult> Index()
