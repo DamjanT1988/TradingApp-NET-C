@@ -1,37 +1,69 @@
-﻿@using Newtonsoft.Json
+﻿@{
+    ViewData["Title"] = "Capacity Chart";
+}
+
+<h2>Capacity Chart</h2>
+
+<!-- Display any error messages -->
+@if (ViewBag.UMMErrorMessage != null)
+{
+    <div class="alert alert-danger">
+        <strong>UMM API Error:</strong> @ViewBag.UMMErrorMessage
+    </div>
+}
+
+@if (ViewBag.RSSErrorMessage != null)
+{
+    <div class="alert alert-danger">
+        <strong>RSS Feed Error:</strong> @ViewBag.RSSErrorMessage
+    </div>
+}
+
+<!-- Canvas element for Chart.js -->
 <canvas id="capacityChart"></canvas>
+
+<!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    var capacityData = @Html.Raw(JsonConvert.SerializeObject(ViewBag.CapacityData));
+    // Safely parse the serialized JSON data from ViewBag. If it's null, initialize an empty array
+    var capacityData = @Html.Raw(JsonConvert.SerializeObject(ViewBag.CapacityDataJson ?? "[]"));
 
-    var labels = capacityData.map(item => item.ProductionType);
-    var data = capacityData.map(item => item.UnavailableCapacity);
+    if (capacityData.length === 0) {
+        alert("No data available to display.");
+    } else {
+        // Extract labels and data for the chart
+        var labels = capacityData.map(item => item.ProductionType);  // Assuming 'ProductionType' exists
+        var data = capacityData.map(item => item.UnavailableCapacity);  // Assuming 'UnavailableCapacity' exists
 
-    var ctx = document.getElementById('capacityChart').getContext('2d');
-    var capacityChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Unavailable Capacity (MW)',
-                data: data,
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true
+        // Initialize Chart.js to display the data
+        var ctx = document.getElementById('capacityChart').getContext('2d');
+        var capacityChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,  // Production types as labels
+                datasets: [{
+                    label: 'Unavailable Capacity (MW)',
+                    data: data,  // Unavailable capacity values as data points
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 
+    // Function to filter data by area (optional)
     function filterByArea() {
         var selectedArea = document.getElementById('areaFilter').value;
+
         var filteredData = capacityData.filter(item => selectedArea === "All" || item.Area === selectedArea);
 
         // Update the chart with filtered data
@@ -45,8 +77,10 @@
 
 </script>
 
+<!-- Dropdown for filtering by area (optional) -->
 <select id="areaFilter" onchange="filterByArea()">
     <option value="All">All Areas</option>
     <option value="Area1">Area 1</option>
     <option value="Area2">Area 2</option>
+    <!-- Add more areas if needed -->
 </select>
