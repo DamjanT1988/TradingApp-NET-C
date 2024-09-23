@@ -46,7 +46,6 @@ public class UMMService
     }
 }
 
-
 public class UMMMessage
 {
     public string MessageType { get; set; }
@@ -56,7 +55,6 @@ public class UMMMessage
     public DateTime EventStart { get; set; }
     public DateTime EventEnd { get; set; }
 }
-
 
 public class RSSService
 {
@@ -72,8 +70,14 @@ public class RSSService
         string rssFeedUrl = "https://umm.nordpoolgroup.com/#/messages?publicationDate=all&eventDate=nextweek";
         var response = await _httpClient.GetStringAsync(rssFeedUrl);
 
-        using (var stringReader = new StringReader(response))
-        using (var xmlReader = XmlReader.Create(stringReader))
+        // Configure XmlReaderSettings to allow DTD processing
+        var settings = new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Parse
+        };
+
+        using (var stringReader = new System.IO.StringReader(response))
+        using (var xmlReader = XmlReader.Create(stringReader, settings))
         {
             var syndicationFeed = SyndicationFeed.Load(xmlReader);
             var ummMessages = new List<UMMMessage>();
