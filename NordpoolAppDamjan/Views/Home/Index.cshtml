@@ -20,7 +20,9 @@
     </div>
 }
 
-<!-- Canvas elements for UMM and RSS charts -->
+<!-- Refresh Button for UMM Data -->
+<button id="refreshButton" class="btn btn-primary">Refresh UMM Data</button>
+
 <h3>UMM Data Chart</h3>
 <select id="areaFilter">
     <option value="All">All Areas</option>
@@ -33,9 +35,6 @@
 <h3>RSS Data Chart</h3>
 <canvas id="rssCapacityChart"></canvas>
 
-<!-- Real-time WebSocket message display -->
-<h3>WebSocket Real-Time UMM Updates</h3>
-<ul id="wsMessages"></ul> <!-- Real-time messages will appear here -->
 <!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -45,7 +44,7 @@
 
     const fuelTypeMapping = {
         "1": "Fossil Hard Coal",
-        "2": "Fossil Brown Coal",
+        "2": "Fossil Brown Coal/Lignite",
         "3": "Fossil Oil",
         "4": "Nuclear",
         "5": "Fossil Gas",
@@ -93,7 +92,6 @@
         ummCapacityChart.update();
     }
 
-    // Initialize UMM Chart
     var ctxUMM = document.getElementById('ummCapacityChart').getContext('2d');
     var ummCapacityChart = new Chart(ctxUMM, {
         type: 'bar',
@@ -131,6 +129,19 @@
         updateUMMChart(selectedArea);
     });
 
+    // Refresh button handler
+    document.getElementById('refreshButton').addEventListener('click', function () {
+        fetch('/Home/RefreshUMMData')
+            .then(response => response.json())
+            .then(data => {
+                ummData = JSON.parse(data.data); // Refresh the UMM data
+                updateUMMChart('All'); // Reload the chart with new data
+            })
+            .catch(error => {
+                console.error('Error refreshing UMM data:', error);
+            });
+    });
+
     updateUMMChart('All');
 
     // Initialize RSS Chart
@@ -165,27 +176,4 @@
             }
         }
     });
-
-    // SignalR WebSocket setup
-    const connection = new signalR.HubConnectionBuilder()
-        .withUrl("/ummhub")
-        .build();
-
-    connection.on("ReceiveUMMMessage", function (message) {
-        const wsMessagesList = document.getElementById("wsMessages");
-        let listItem = document.createElement("li");
-        listItem.textContent = `Real-time UMM Update: ${message}`;
-        wsMessagesList.appendChild(listItem);
-
-        // Optionally, parse the message and update the UMM chart with new data
-        // updateUMMChartFromMessage(message);
-    });
-
-    connection.start().then(function () {
-        console.log("SignalR connected.");
-    }).catch(function (err) {
-        console.error(err.toString());
-    });
 </script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>

@@ -12,7 +12,7 @@ public class WSService
 
     public WSService()
     {
-        // Initialize the SignalR connection
+        // Initialize the SignalR connection using the classic ASP.NET SignalR Client
         _connection = new HubConnection(ServerURI);
         _hubProxy = _connection.CreateHubProxy("MessageHub");
 

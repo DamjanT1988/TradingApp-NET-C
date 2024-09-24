@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,15 +9,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient<UMMService>();
 builder.Services.AddHttpClient<RSSService>();
 
-// Register the SignalR service
-builder.Services.AddSignalR();
-
 // Register WSService as a singleton to handle WebSocket connections
 builder.Services.AddSingleton<WSService>();
-
-// Register WebSocket Background Service (WSBackgroundService should handle WebSocket connections)
-// Optionally, if WSBackgroundService is needed in the background to handle WebSocket connections.
-//builder.Services.AddHostedService<WSBackgroundService>();
 
 var app = builder.Build();
 
