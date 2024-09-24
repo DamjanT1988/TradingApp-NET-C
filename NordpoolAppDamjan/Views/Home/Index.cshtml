@@ -20,51 +20,43 @@
     </div>
 }
 
-<!-- Canvas elements for two charts: UMM Data and RSS Data -->
+<!-- Canvas elements for UMM, RSS, and WebSocket Data -->
 <h3>UMM Data Chart</h3>
 <select id="areaFilter">
     <option value="All">All Areas</option>
     <option value="SE2">SE2</option>
     <option value="BE">BE</option>
     <option value="FR">FR</option>
-    <!-- Add more areas as needed -->
 </select>
 <canvas id="ummCapacityChart"></canvas>
 
 <h3>RSS Data Chart</h3>
 <canvas id="rssCapacityChart"></canvas>
 
+<h3>WebSocket Data Chart</h3>
+<canvas id="wsCapacityChart"></canvas>
+
 <!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script>5
-    // Safely parse the serialized JSON data from ViewBag for UMM and RSS separately
+<script>
     var ummData = @Html.Raw(ViewBag.UMMDataJson ?? "[]");
     var rssData = @Html.Raw(ViewBag.RSSDataJson ?? "[]");
+    var wsData = @Html.Raw(ViewBag.WebSocketMessagesJson ?? "[]");
 
-    // Define a mapping for fuelType codes to human-readable production type names
     const fuelTypeMapping = {
         "1": "Fossil Hard Coal",
-        "2": "Fossil Brown Coal/Lignite",
+        "2": "Fossil Brown Coal",
         "3": "Fossil Oil",
         "4": "Nuclear",
         "5": "Fossil Gas",
         "6": "Geothermal",
         "7": "Hydro Pumped Storage",
-        "8": "Hydro Run-of-River and Poundage",
-        "9": "Hydro Water Reservoir",
-        "10": "Marine",
+        "8": "Hydro Run-of-River",
+        "9": "Hydro Reservoir",
         "11": "Wind Onshore",
         "12": "Wind Offshore",
         "13": "Solar",
-        "14": "Biomass",
-        "15": "Fossil Peat",
-        "16": "Waste",
-        "17": "Other Renewable",
-        "18": "Other Non-Renewable",
-        "19": "Mixed Fossil Fuels",
-        "20": "Hydrogen",
-        "21": "Tide/Wave/Ocean",
         "100": "Unknown"
     };
 
@@ -77,7 +69,7 @@
             item.productionUnits.forEach(unit => {
                 if (selectedArea !== 'All' && unit.areaName !== selectedArea) return;
 
-                let productionType = fuelTypeMapping[unit.fuelType] || `Unknown (${unit.fuelType})`; // Map fuelType to human-readable name
+                let productionType = fuelTypeMapping[unit.fuelType] || `Unknown (${unit.fuelType})`;
 
                 unit.timePeriods.forEach(period => {
                     if (!aggregatedData[productionType]) {
@@ -94,24 +86,23 @@
     function updateUMMChart(selectedArea) {
         var aggregatedData = aggregateDataByProductionType(ummData, selectedArea);
 
-        var ummLabels = Object.keys(aggregatedData);  // Human-readable production types
-        var ummCapacity = Object.values(aggregatedData);  // Corresponding unavailable capacity values
+        var ummLabels = Object.keys(aggregatedData);
+        var ummCapacity = Object.values(aggregatedData);
 
-        // Update the UMM chart with new data
         ummCapacityChart.data.labels = ummLabels;
         ummCapacityChart.data.datasets[0].data = ummCapacity;
         ummCapacityChart.update();
     }
 
-    // Initialize the UMM Chart
+    // Initialize UMM Chart
     var ctxUMM = document.getElementById('ummCapacityChart').getContext('2d');
     var ummCapacityChart = new Chart(ctxUMM, {
         type: 'bar',
         data: {
-            labels: [],  // Empty labels will be populated later
+            labels: [],
             datasets: [{
                 label: 'UMM Unavailable Capacity (MW)',
-                data: [],  // Data will be populated later
+                data: [],
                 backgroundColor: 'rgba(75, 192, 192, 0.2)',
                 borderColor: 'rgba(75, 192, 192, 1)',
                 borderWidth: 1
@@ -123,67 +114,91 @@
                     beginAtZero: true,
                     title: {
                         display: true,
-                        text: 'Unavailable Capacity (MW)'  // y-axis label
+                        text: 'Unavailable Capacity (MW)'
                     }
                 },
                 x: {
                     title: {
                         display: true,
-                        text: 'Production Types'  // x-axis label
+                        text: 'Production Types'
                     }
                 }
             }
         }
     });
 
-    // Handle area filter change
     document.getElementById('areaFilter').addEventListener('change', function () {
         var selectedArea = this.value;
         updateUMMChart(selectedArea);
     });
 
-    // Initial chart load for all areas
     updateUMMChart('All');
 
-    // Initialize the RSS Chart
-    if (rssData.length === 0) {
-        alert("No RSS data available to display.");
-    } else {
-        var rssLabels = rssData.map(item => item.ProductionType);
-        var rssCapacity = rssData.map(item => item.UnavailableCapacity);
-
-        var ctxRSS = document.getElementById('rssCapacityChart').getContext('2d');
-        var rssCapacityChart = new Chart(ctxRSS, {
-            type: 'bar',
-            data: {
-                labels: rssLabels,
-                datasets: [{
-                    label: 'RSS Unavailable Capacity (MW)',
-                    data: rssCapacity,
-                    backgroundColor: 'rgba(153, 102, 255, 0.2)',
-                    borderColor: 'rgba(153, 102, 255, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Unavailable Capacity (MW)'  // y-axis label
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Production Types'  // x-axis label
-                        }
+    // Initialize RSS Chart
+    var ctxRSS = document.getElementById('rssCapacityChart').getContext('2d');
+    var rssCapacityChart = new Chart(ctxRSS, {
+        type: 'bar',
+        data: {
+            labels: rssData.map(item => item.ProductionType),
+            datasets: [{
+                label: 'RSS Unavailable Capacity (MW)',
+                data: rssData.map(item => item.UnavailableCapacity),
+                backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                borderColor: 'rgba(153, 102, 255, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Unavailable Capacity (MW)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Production Types'
                     }
                 }
             }
-        });
-    }
+        }
+    });
+
+    // Initialize WebSocket Chart
+    var ctxWS = document.getElementById('wsCapacityChart').getContext('2d');
+    var wsCapacityChart = new Chart(ctxWS, {
+        type: 'line',
+        data: {
+            labels: wsData.map((_, index) => `Message ${index + 1}`),
+            datasets: [{
+                label: 'WebSocket UMM Messages',
+                data: wsData.map((msg, index) => index + 1),
+                backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                borderColor: 'rgba(255, 159, 64, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Message Count'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Messages'
+                    }
+                }
+            }
+        }
+    });
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
@@ -194,7 +209,6 @@
 
     connection.on("ReceiveUMMMessage", function (message) {
         console.log("Received UMM message:", message);
-        // Update UI or process real-time message here
     });
 
     connection.start().then(function () {

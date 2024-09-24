@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.SignalR;
-
+/*
 public class WSBackgroundService : IHostedService
 {
     private readonly WSService _wsService;
@@ -25,3 +25,4 @@ public class WSBackgroundService : IHostedService
         return Task.CompletedTask;
     }
 }
+*/

@@ -9,16 +9,21 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient<UMMService>();
 builder.Services.AddHttpClient<RSSService>();
 
-// Register WebSocket Background Service (WSBackgroundService should handle WebSocket connections)
-builder.Services.AddHostedService<WSBackgroundService>();
-
 // Register the SignalR service
 builder.Services.AddSignalR();
 
-// Register WSService and its dependencies
+// Register WSService as a singleton to handle WebSocket connections
 builder.Services.AddSingleton<WSService>();
 
+// Register WebSocket Background Service (WSBackgroundService should handle WebSocket connections)
+// Optionally, if WSBackgroundService is needed in the background to handle WebSocket connections.
+//builder.Services.AddHostedService<WSBackgroundService>();
+
 var app = builder.Build();
+
+// Start the WebSocket listener on application start
+var wsService = app.Services.GetRequiredService<WSService>();
+Task.Run(() => wsService.StartListeningAsync());
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -33,9 +38,6 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthorization();
-
-// Map SignalR Hub for real-time updates
-app.MapHub<UMMHub>("/ummhub");
 
 app.MapControllerRoute(
     name: "default",

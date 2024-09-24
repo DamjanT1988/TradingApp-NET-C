@@ -8,11 +8,13 @@ public class HomeController : Controller
 {
     private readonly UMMService _ummService;
     private readonly RSSService _rssService;
+    private readonly WSService _wsService;
 
-    public HomeController(UMMService ummService, RSSService rssService)
+    public HomeController(UMMService ummService, RSSService rssService, WSService wsService)
     {
         _ummService = ummService;
         _rssService = rssService;
+        _wsService = wsService;
     }
 
     public async Task<IActionResult> Index()
@@ -37,7 +39,7 @@ public class HomeController : Controller
 
         try
         {
-            // Fetch data from the RSS feed (this should always run, regardless of UMM API status)
+            // Fetch data from the RSS feed
             rssMessages = await _rssService.GetRSSUMMFeedAsync();
         }
         catch (Exception ex)
@@ -46,9 +48,13 @@ public class HomeController : Controller
             ViewBag.RSSErrorMessage = $"RSS feed failed: {ex.Message}";
         }
 
+        // Start WebSocket listening
+        await _wsService.StartListeningAsync();
+
         // Serialize the separate data for use in the view
         ViewBag.UMMDataJson = JsonConvert.SerializeObject(umms);
         ViewBag.RSSDataJson = JsonConvert.SerializeObject(rssMessages);
+        ViewBag.WebSocketMessagesJson = JsonConvert.SerializeObject(_wsService.GetMessages());
 
         return View();
     }
