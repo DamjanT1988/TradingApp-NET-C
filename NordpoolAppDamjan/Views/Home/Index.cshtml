@@ -20,6 +20,13 @@
     </div>
 }
 
+@if (ViewBag.WSErrorMessage != null)
+{
+    <div class="alert alert-danger">
+        <strong>WS Error:</strong> @ViewBag.WSErrorMessage
+    </div>
+}
+
 <!-- Refresh Button for UMM Data -->
 <button id="refreshButton" class="btn btn-primary">Refresh UMM Data</button>
 
@@ -35,12 +42,16 @@
 <h3>RSS Data Chart</h3>
 <canvas id="rssCapacityChart"></canvas>
 
+<h3>WS Data Chart</h3>
+<canvas id="wsCapacityChart"></canvas>
+
 <!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
     var ummData = @Html.Raw(ViewBag.UMMDataJson ?? "[]");
     var rssData = @Html.Raw(ViewBag.RSSDataJson ?? "[]");
+    var wsData = @Html.Raw(ViewBag.WSDataJson ?? "[]");
 
     const fuelTypeMapping = {
         "1": "Fossil Hard Coal",
@@ -176,4 +187,62 @@
             }
         }
     });
+
+    // WebSocket Data Chart (WSService)
+    function updateWSChart(wsMessages) {
+        var wsLabels = [];
+        var wsCapacity = [];
+
+        wsMessages.forEach(message => {
+            const parsedMessage = JSON.parse(message);
+            const productionUnit = parsedMessage.productionUnits ? parsedMessage.productionUnits[0] : null;
+            if (productionUnit) {
+                const fuelType = productionUnit.fuelType;
+                const productionType = fuelTypeMapping[fuelType] || `Unknown (${fuelType})`;
+                const unavailableCapacity = productionUnit.timePeriods ? productionUnit.timePeriods[0].unavailableCapacity : 0;
+
+                wsLabels.push(productionType);
+                wsCapacity.push(unavailableCapacity);
+            }
+        });
+
+        wsCapacityChart.data.labels = wsLabels;
+        wsCapacityChart.data.datasets[0].data = wsCapacity;
+        wsCapacityChart.update();
+    }
+
+    var ctxWS = document.getElementById('wsCapacityChart').getContext('2d');
+    var wsCapacityChart = new Chart(ctxWS, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'WS Unavailable Capacity (MW)',
+                data: [],
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Unavailable Capacity (MW)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Production Types'
+                    }
+                }
+            }
+        }
+    });
+
+    // Load initial WebSocket data
+    updateWSChart(wsData);
 </script>

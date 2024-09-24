@@ -21,6 +21,7 @@ public class HomeController : Controller
     {
         List<UMMMessage> umms = new List<UMMMessage>();
         List<RSSMessage> rssMessages = new List<RSSMessage>();
+        List<string> wsMessages = new List<string>();
 
         DateTime startDate = DateTime.UtcNow.AddDays(-7);  // 7 days ago
         DateTime endDate = DateTime.UtcNow;  // Current date
@@ -45,9 +46,20 @@ public class HomeController : Controller
             ViewBag.RSSErrorMessage = $"RSS feed failed: {ex.Message}";
         }
 
-        // Serialize data for use in the view
+        try
+        {
+            // Get real-time WebSocket messages from WSService
+            wsMessages = _wsService.GetMessages();
+        }
+        catch (Exception ex)
+        {
+            ViewBag.WSErrorMessage = $"WebSocket service failed: {ex.Message}";
+        }
+
+        // Serialize UMM, RSS, and WebSocket data for the view
         ViewBag.UMMDataJson = JsonConvert.SerializeObject(umms);
         ViewBag.RSSDataJson = JsonConvert.SerializeObject(rssMessages);
+        ViewBag.WSDataJson = JsonConvert.SerializeObject(wsMessages);
 
         return View();
     }
