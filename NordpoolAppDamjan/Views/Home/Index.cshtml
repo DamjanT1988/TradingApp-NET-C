@@ -20,7 +20,7 @@
     </div>
 }
 
-<!-- Canvas elements for UMM, RSS, and WebSocket Data -->
+<!-- Canvas elements for UMM and RSS charts -->
 <h3>UMM Data Chart</h3>
 <select id="areaFilter">
     <option value="All">All Areas</option>
@@ -33,16 +33,15 @@
 <h3>RSS Data Chart</h3>
 <canvas id="rssCapacityChart"></canvas>
 
-<h3>WebSocket Data Chart</h3>
-<canvas id="wsCapacityChart"></canvas>
-
+<!-- Real-time WebSocket message display -->
+<h3>WebSocket Real-Time UMM Updates</h3>
+<ul id="wsMessages"></ul> <!-- Real-time messages will appear here -->
 <!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
     var ummData = @Html.Raw(ViewBag.UMMDataJson ?? "[]");
     var rssData = @Html.Raw(ViewBag.RSSDataJson ?? "[]");
-    var wsData = @Html.Raw(ViewBag.WebSocketMessagesJson ?? "[]");
 
     const fuelTypeMapping = {
         "1": "Fossil Hard Coal",
@@ -167,48 +166,19 @@
         }
     });
 
-    // Initialize WebSocket Chart
-    var ctxWS = document.getElementById('wsCapacityChart').getContext('2d');
-    var wsCapacityChart = new Chart(ctxWS, {
-        type: 'line',
-        data: {
-            labels: wsData.map((_, index) => `Message ${index + 1}`),
-            datasets: [{
-                label: 'WebSocket UMM Messages',
-                data: wsData.map((msg, index) => index + 1),
-                backgroundColor: 'rgba(255, 159, 64, 0.2)',
-                borderColor: 'rgba(255, 159, 64, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Message Count'
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Messages'
-                    }
-                }
-            }
-        }
-    });
-</script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
-<script>
+    // SignalR WebSocket setup
     const connection = new signalR.HubConnectionBuilder()
         .withUrl("/ummhub")
         .build();
 
     connection.on("ReceiveUMMMessage", function (message) {
-        console.log("Received UMM message:", message);
+        const wsMessagesList = document.getElementById("wsMessages");
+        let listItem = document.createElement("li");
+        listItem.textContent = `Real-time UMM Update: ${message}`;
+        wsMessagesList.appendChild(listItem);
+
+        // Optionally, parse the message and update the UMM chart with new data
+        // updateUMMChartFromMessage(message);
     });
 
     connection.start().then(function () {
@@ -217,3 +187,5 @@
         console.error(err.toString());
     });
 </script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
