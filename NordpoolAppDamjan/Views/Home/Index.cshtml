@@ -3,9 +3,6 @@
     ViewData["Title"] = "Capacity Chart";
 }
 
-<pre>@Html.Raw(ViewBag.UMMDataJson)</pre>
-<pre>@Html.Raw(ViewBag.RSSDataJson)</pre>
-
 <h2>Capacity Chart</h2>
 
 <!-- Display any error messages -->
@@ -45,6 +42,32 @@
     var ummData = @Html.Raw(ViewBag.UMMDataJson ?? "[]");
     var rssData = @Html.Raw(ViewBag.RSSDataJson ?? "[]");
 
+    // Define a mapping for fuelType codes to human-readable production type names
+    const fuelTypeMapping = {
+        "1": "Fossil Hard Coal",
+        "2": "Fossil Brown Coal/Lignite",
+        "3": "Fossil Oil",
+        "4": "Nuclear",
+        "5": "Fossil Gas",
+        "6": "Geothermal",
+        "7": "Hydro Pumped Storage",
+        "8": "Hydro Run-of-River and Poundage",
+        "9": "Hydro Water Reservoir",
+        "10": "Marine",
+        "11": "Wind Onshore",
+        "12": "Wind Offshore",
+        "13": "Solar",
+        "14": "Biomass",
+        "15": "Fossil Peat",
+        "16": "Waste",
+        "17": "Other Renewable",
+        "18": "Other Non-Renewable",
+        "19": "Mixed Fossil Fuels",
+        "20": "Hydrogen",
+        "21": "Tide/Wave/Ocean",
+        "100": "Unknown"
+    };
+
     function aggregateDataByProductionType(ummData, selectedArea = 'All') {
         let aggregatedData = {};
 
@@ -54,7 +77,7 @@
             item.productionUnits.forEach(unit => {
                 if (selectedArea !== 'All' && unit.areaName !== selectedArea) return;
 
-                let productionType = unit.fuelType;  // Assuming fuelType represents production type
+                let productionType = fuelTypeMapping[unit.fuelType] || `Unknown (${unit.fuelType})`; // Map fuelType to human-readable name
 
                 unit.timePeriods.forEach(period => {
                     if (!aggregatedData[productionType]) {
@@ -71,8 +94,8 @@
     function updateUMMChart(selectedArea) {
         var aggregatedData = aggregateDataByProductionType(ummData, selectedArea);
 
-        var ummLabels = Object.keys(aggregatedData);
-        var ummCapacity = Object.values(aggregatedData);
+        var ummLabels = Object.keys(aggregatedData);  // Human-readable production types
+        var ummCapacity = Object.values(aggregatedData);  // Corresponding unavailable capacity values
 
         // Update the UMM chart with new data
         ummCapacityChart.data.labels = ummLabels;
@@ -97,7 +120,17 @@
         options: {
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Unavailable Capacity (MW)'  // y-axis label
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Production Types'  // x-axis label
+                    }
                 }
             }
         }
@@ -135,7 +168,17 @@
             options: {
                 scales: {
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Unavailable Capacity (MW)'  // y-axis label
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Production Types'  // x-axis label
+                        }
                     }
                 }
             }
