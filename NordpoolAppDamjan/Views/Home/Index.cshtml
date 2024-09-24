@@ -37,7 +37,7 @@
 <!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script>
+<script>5
     // Safely parse the serialized JSON data from ViewBag for UMM and RSS separately
     var ummData = @Html.Raw(ViewBag.UMMDataJson ?? "[]");
     var rssData = @Html.Raw(ViewBag.RSSDataJson ?? "[]");
@@ -184,4 +184,22 @@
             }
         });
     }
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.9/signalr.min.js"></script>
+<script>
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/ummhub")
+        .build();
+
+    connection.on("ReceiveUMMMessage", function (message) {
+        console.log("Received UMM message:", message);
+        // Update UI or process real-time message here
+    });
+
+    connection.start().then(function () {
+        console.log("SignalR connected.");
+    }).catch(function (err) {
+        console.error(err.toString());
+    });
 </script>
