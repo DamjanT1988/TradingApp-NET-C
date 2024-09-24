@@ -1,58 +1,96 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Xml;
 using System.ServiceModel.Syndication;
-using System.Net.Http.Headers;
-using System.Text;
+using HtmlAgilityPack;
 
+public class RSSService
+{
+    private readonly HttpClient _httpClient;
 
-    public class RSSService
+    public RSSService(HttpClient httpClient)
     {
-        private readonly HttpClient _httpClient;
+        _httpClient = httpClient;
+    }
 
-        public RSSService(HttpClient httpClient)
+    public async Task<List<RSSMessage>> GetRSSUMMFeedAsync()
+    {
+        string rssFeedUrl = "https://ummrss.nordpoolgroup.com/messages/?publicationStartDate=2024-06-30T23%3A00%3A00.000Z&eventStartDate=2024-09-22T22%3A00%3A00.000Z&eventStopDate=2024-09-29T21%3A59%3A59.999Z&limit=100";
+        var response = await _httpClient.GetStringAsync(rssFeedUrl);
+
+        Console.WriteLine("Response from RSS Feed: " + response); // Log the raw response
+
+        var settings = new XmlReaderSettings
         {
-            _httpClient = httpClient;
-        }
+            DtdProcessing = DtdProcessing.Parse
+        };
 
-        public async Task<List<RSSMessage>> GetRSSUMMFeedAsync()
+        using (var stringReader = new System.IO.StringReader(response))
+        using (var xmlReader = XmlReader.Create(stringReader, settings))
         {
-            string rssFeedUrl = "https://ummrss.nordpoolgroup.com/messages/?publicationStartDate=2024-06-30T23%3A00%3A00.000Z&eventStartDate=2024-09-22T22%3A00%3A00.000Z&eventStopDate=2024-09-29T21%3A59%3A59.999Z&limit=100";
-            var response = await _httpClient.GetStringAsync(rssFeedUrl);
+            // Define the XML namespace used in the feed
+            var atomNamespace = "http://www.w3.org/2005/Atom";
+            var syndicationFeed = SyndicationFeed.Load(xmlReader);
+            var ummMessages = new List<RSSMessage>();
 
-            // Configure XmlReaderSettings to allow DTD processing
-            var settings = new XmlReaderSettings
+            foreach (var item in syndicationFeed.Items)
             {
-                DtdProcessing = DtdProcessing.Parse
-            };
+                var title = item.Title.Text;
+                var contentHtml = item.Content?.ToString();
 
-            using (var stringReader = new System.IO.StringReader(response))
-            using (var xmlReader = XmlReader.Create(stringReader, settings))
-            {
-                var syndicationFeed = SyndicationFeed.Load(xmlReader);
-                var ummMessages = new List<RSSMessage>();
-
-                foreach (var item in syndicationFeed.Items)
+                if (!string.IsNullOrEmpty(contentHtml))
                 {
-                    // Assuming that "ProductionUnavailability" is part of the title or description
-                    if (item.Title.Text.Contains("ProductionUnavailability"))
+                    // Parse the HTML content inside <content>
+                    var htmlDoc = new HtmlDocument();
+                    htmlDoc.LoadHtml(contentHtml);
+
+                    // Extract unavailable capacity and production type
+                    var unavailableCapacity = ExtractUnavailableCapacity(htmlDoc);
+                    var productionType = ExtractProductionType(htmlDoc);
+
+                    if (productionType != null && unavailableCapacity.HasValue)
                     {
                         ummMessages.Add(new RSSMessage
                         {
-                            MessageType = "ProductionUnavailability",
-                            ProductionType = item.Title.Text,
-                            UnavailableCapacity = int.Parse(item.Summary.Text) // Assuming unavailable capacity is in summary
+                            MessageType = title,
+                            ProductionType = productionType,
+                            UnavailableCapacity = unavailableCapacity.Value
                         });
+
+                        Console.WriteLine($"Added Message: ProductionType={productionType}, UnavailableCapacity={unavailableCapacity}");
                     }
                 }
-
-                return ummMessages;
             }
+
+            Console.WriteLine($"Total Messages Parsed: {ummMessages.Count}");
+            return ummMessages;
         }
     }
+
+    private int? ExtractUnavailableCapacity(HtmlDocument htmlDoc)
+    {
+        // Find the row that contains 'Unavailable Capacity' and extract the following cell value
+        var unavailableCapacityNode = htmlDoc.DocumentNode.SelectSingleNode("//td[contains(text(), 'Unavailable Capacity')]/following-sibling::td");
+        if (unavailableCapacityNode != null)
+        {
+            var capacityText = unavailableCapacityNode.InnerText.Replace(" MW", "").Trim();
+            if (int.TryParse(capacityText, out var capacity))
+            {
+                return capacity;
+            }
+        }
+        return null;
+    }
+
+    private string ExtractProductionType(HtmlDocument htmlDoc)
+    {
+        // Find the row that contains 'Fuel Type' and extract the following cell value
+        var fuelTypeNode = htmlDoc.DocumentNode.SelectSingleNode("//td[contains(text(), 'Fuel Type')]/following-sibling::td");
+        return fuelTypeNode?.InnerText.Trim();
+    }
+}
 
 public class RSSMessage
 {
