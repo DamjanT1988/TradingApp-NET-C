@@ -3,6 +3,9 @@
     ViewData["Title"] = "Capacity Chart";
 }
 
+<pre>@Html.Raw(ViewBag.UMMDataJson)</pre>
+<pre>@Html.Raw(ViewBag.RSSDataJson)</pre>
+
 <h2>Capacity Chart</h2>
 
 <!-- Display any error messages -->
@@ -22,6 +25,13 @@
 
 <!-- Canvas elements for two charts: UMM Data and RSS Data -->
 <h3>UMM Data Chart</h3>
+<select id="areaFilter">
+    <option value="All">All Areas</option>
+    <option value="SE2">SE2</option>
+    <option value="BE">BE</option>
+    <option value="FR">FR</option>
+    <!-- Add more areas as needed -->
+</select>
 <canvas id="ummCapacityChart"></canvas>
 
 <h3>RSS Data Chart</h3>
@@ -35,37 +45,74 @@
     var ummData = @Html.Raw(ViewBag.UMMDataJson ?? "[]");
     var rssData = @Html.Raw(ViewBag.RSSDataJson ?? "[]");
 
-    // Initialize UMM Chart
-    if (ummData.length === 0) {
-        alert("No UMM data available to display.");
-    } else {
-        var ummLabels = ummData.map(item => item.ProductionType);
-        var ummCapacity = ummData.map(item => item.UnavailableCapacity);
+    function aggregateDataByProductionType(ummData, selectedArea = 'All') {
+        let aggregatedData = {};
 
-        var ctxUMM = document.getElementById('ummCapacityChart').getContext('2d');
-        var ummCapacityChart = new Chart(ctxUMM, {
-            type: 'bar',
-            data: {
-                labels: ummLabels,
-                datasets: [{
-                    label: 'UMM Unavailable Capacity (MW)',
-                    data: ummCapacity,
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true
+        ummData.forEach(item => {
+            if (!item.productionUnits || item.productionUnits.length === 0) return;
+
+            item.productionUnits.forEach(unit => {
+                if (selectedArea !== 'All' && unit.areaName !== selectedArea) return;
+
+                let productionType = unit.fuelType;  // Assuming fuelType represents production type
+
+                unit.timePeriods.forEach(period => {
+                    if (!aggregatedData[productionType]) {
+                        aggregatedData[productionType] = 0;
                     }
-                }
-            }
+                    aggregatedData[productionType] += period.unavailableCapacity;
+                });
+            });
         });
+
+        return aggregatedData;
     }
 
-    // Initialize RSS Chart
+    function updateUMMChart(selectedArea) {
+        var aggregatedData = aggregateDataByProductionType(ummData, selectedArea);
+
+        var ummLabels = Object.keys(aggregatedData);
+        var ummCapacity = Object.values(aggregatedData);
+
+        // Update the UMM chart with new data
+        ummCapacityChart.data.labels = ummLabels;
+        ummCapacityChart.data.datasets[0].data = ummCapacity;
+        ummCapacityChart.update();
+    }
+
+    // Initialize the UMM Chart
+    var ctxUMM = document.getElementById('ummCapacityChart').getContext('2d');
+    var ummCapacityChart = new Chart(ctxUMM, {
+        type: 'bar',
+        data: {
+            labels: [],  // Empty labels will be populated later
+            datasets: [{
+                label: 'UMM Unavailable Capacity (MW)',
+                data: [],  // Data will be populated later
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Handle area filter change
+    document.getElementById('areaFilter').addEventListener('change', function () {
+        var selectedArea = this.value;
+        updateUMMChart(selectedArea);
+    });
+
+    // Initial chart load for all areas
+    updateUMMChart('All');
+
+    // Initialize the RSS Chart
     if (rssData.length === 0) {
         alert("No RSS data available to display.");
     } else {

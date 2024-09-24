@@ -3,11 +3,6 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.Collections.Generic;
-using System.Xml;
-using System.ServiceModel.Syndication;
-using System.Net.Http.Headers;
-using System.Text;
-
 
 public class UMMService
 {
@@ -18,19 +13,37 @@ public class UMMService
         _httpClient = httpClient;
     }
 
-    public async Task<List<UMMMessage>> GetProductionUnavailabilityUMMsAsync()
+    public async Task<List<UMMMessage>> GetProductionUnavailabilityUMMsAsync(
+        DateTime startDate, DateTime endDate,
+        int skip = 0, int limit = 100,
+        string status = "Active",
+        string order = "PublicationDate",
+        string orderDirection = "DESC")
     {
-        // Get current UTC date and time for API request
-        var now = DateTime.UtcNow;
-        var startDate = now.AddDays(-7); // Example: 7 days ago
-        var endDate = now; // Now
-
-        // Format the start and end dates as ISO8601 (UTC)
+        // Format dates as ISO8601 (UTC)
         string formattedStartDate = startDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         string formattedEndDate = endDate.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
 
-        // Build the URL using the formatted dates
-        string url = $"https://ummapi.nordpoolgroup.com/messages?publicationStartDate={formattedStartDate}&eventStartDate={formattedStartDate}&eventStopDate={formattedEndDate}";
+        // Prepare the query parameters
+        var queryParams = new Dictionary<string, string>
+        {
+            { "messageTypes", "ProductionUnavailability" }, // Filter for ProductionUnavailability
+            { "status", status }, // Filter by active status
+            { "publicationStartDate", formattedStartDate },
+            { "publicationStopDate", formattedEndDate },
+            { "eventStartDate", formattedStartDate },
+            { "eventStopDate", formattedEndDate },
+            { "skip", skip.ToString() }, // Paging support: skip records
+            { "limit", limit.ToString() }, // Limit the results to prevent exceeding the limit
+            { "order", order }, // Order by publication date
+            { "orderDirection", orderDirection } // Order direction (ascending or descending)
+        };
+
+        // Build the query string from the dictionary
+        var queryString = string.Join("&", queryParams.Select(kv => $"{kv.Key}={kv.Value}"));
+
+        // Build the complete URL
+        string url = $"https://ummapi.nordpoolgroup.com/messages?{queryString}";
 
         // Make the GET request to the API
         var response = await _httpClient.GetAsync(url);
@@ -51,9 +64,8 @@ public class UMMService
             return new List<UMMMessage>(); // Return an empty list if response is null
         }
 
-        // Check that MessageType is an integer (1 = "ProductionUnavailability") 
-        return ummResponse.Items.FindAll(umm => umm.MessageType == 1);  // Assuming '1' is the correct message type for "ProductionUnavailability"
-
+        // Return the list of messages
+        return ummResponse.Items;
     }
 }
 
@@ -61,12 +73,15 @@ public class UMMResponse
 {
     [JsonProperty("items")]
     public List<UMMMessage> Items { get; set; }
+
+    [JsonProperty("total")]
+    public int Total { get; set; }
 }
 
 public class UMMMessage
 {
     [JsonProperty("messageType")]
-    public int MessageType { get; set; } // Make sure this is the correct type (assuming it's an int)
+    public string MessageType { get; set; } // Message type (e.g., "ProductionUnavailability")
 
     [JsonProperty("unavailabilityReason")]
     public string UnavailabilityReason { get; set; }
@@ -99,7 +114,7 @@ public class ProductionUnit
     public string Eic { get; set; }
 
     [JsonProperty("fuelType")]
-    public int FuelType { get; set; }
+    public string FuelType { get; set; } // Assuming FuelType is a string (e.g., "FossilGas")
 
     [JsonProperty("areaEic")]
     public string AreaEic { get; set; }
@@ -145,73 +160,4 @@ public class MarketParticipant
 
     [JsonProperty("leiCode")]
     public string LeiCode { get; set; }
-}
-
-
-
-
-
-
-
-
-public class TokenService
-{
-    private readonly HttpClient _httpClient;
-
-    public TokenService(HttpClient httpClient)
-    {
-        _httpClient = httpClient;
-    }
-
-    public async Task<string> GetAccessTokenAsync(string username, string password)
-    {
-        var tokenUrl = "https://sts.nordpoolgroup.com/connect/token"; // Token URL for production
-
-        var clientId = "client_remit_api";
-        var clientSecret = "client_remit_api"; // As per the documentation, this is also the client secret
-
-        // Base64 encode clientId:clientSecret
-        var authString = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
-
-        // Prepare the request headers
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authString);
-
-        // Prepare the form data
-        var formData = new FormUrlEncodedContent(new[]
-        {
-            new KeyValuePair<string, string>("grant_type", "password"),
-            new KeyValuePair<string, string>("scope", "global"), // Change scope if needed
-            new KeyValuePair<string, string>("username", username),
-            new KeyValuePair<string, string>("password", password)
-        });
-
-        // Send the request
-        var response = await _httpClient.PostAsync(tokenUrl, formData);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync();
-            throw new Exception($"Token request failed: {response.StatusCode} - {error}");
-        }
-
-        // Get the token response
-        var content = await response.Content.ReadAsStringAsync();
-        var tokenResponse = JsonConvert.DeserializeObject<TokenResponse>(content);
-
-        // Return the access token
-        return tokenResponse.AccessToken;
-    }
-}
-
-// Token response class to handle the token
-public class TokenResponse
-{
-    [JsonProperty("access_token")]
-    public string AccessToken { get; set; }
-
-    [JsonProperty("expires_in")]
-    public int ExpiresIn { get; set; }
-
-    [JsonProperty("token_type")]
-    public string TokenType { get; set; }
 }

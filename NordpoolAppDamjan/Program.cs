@@ -4,7 +4,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 
 // Register TokenService for handling token generation
-builder.Services.AddScoped<TokenService>();
+//builder.Services.AddScoped<TokenService>();
 
 // Register UMMService and RSSService and their dependencies
 builder.Services.AddHttpClient<UMMService>();

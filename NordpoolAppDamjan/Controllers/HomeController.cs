@@ -1,5 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 public class HomeController : Controller
 {
@@ -17,10 +20,14 @@ public class HomeController : Controller
         List<UMMMessage> umms = new List<UMMMessage>();
         List<RSSMessage> rssMessages = new List<RSSMessage>();
 
+        // Set the date range for fetching UMM messages (example: last 7 days)
+        DateTime startDate = DateTime.UtcNow.AddDays(-7);  // 7 days ago
+        DateTime endDate = DateTime.UtcNow;  // Current date
+
         try
         {
-            // Fetch data from the UMM API
-            umms = await _ummService.GetProductionUnavailabilityUMMsAsync();
+            // Fetch data from the UMM API with startDate and endDate
+            umms = await _ummService.GetProductionUnavailabilityUMMsAsync(startDate, endDate);
         }
         catch (Exception ex)
         {
